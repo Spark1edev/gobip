@@ -9,5 +9,8 @@ func main() {
 		return c.SendString("ok")
 	})
 
-	app.Listen("http://45.12.239.218:8080/")
+	err := app.Listen("45.12.239.218:8080")
+	if err != nil {
+		panic(err)
+	}
 }
