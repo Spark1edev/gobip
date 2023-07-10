@@ -1,15 +1,20 @@
 package main
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+	"gobip/internal/config"
+	"gobip/internal/handlers"
+)
 
 func main() {
 	app := fiber.New()
 	app.Static("/", "./views/src")
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendFile("./views/src/index.html")
-	})
+	app.Get("/", handlers.HandleIndex)
+	app.Post("/write", handlers.HandleWrite)
 
-	err := app.Listen("45.12.239.218:8080")
+	config.Init("config.json")
+
+	err := app.Listen(config.Cfg.Hostname)
 	if err != nil {
 		panic(err)
 	}
